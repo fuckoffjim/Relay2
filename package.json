@@ -1,0 +1,9 @@
+{
+  "name": "relay",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "dependencies": {
+    "irc": "^0.3.9"
+  }
+}
