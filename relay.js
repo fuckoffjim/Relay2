@@ -4,14 +4,6 @@ var config = require('./config'),
 var baseClient = new irc.Client(config.baseServer, config.baseNick, config.baseConnection),
     relays = {};
 
-config.relayServers.forEach(function(relayServer, i) {
-  relays[i+1] = new irc.Client(relayServer, config.relayNick, config.relayConnection);
-  relays[i+1].relayServer = relayServer;
-  relays[i+1].addListener('error', function(m) {
-    console.error('Relay %d error: %s: %s', i+1, m.command, m.args.join(' '));  
-  });
-});
-
 function parseCommand(msg) {
   if (msg[0] === config.commandIdentifer) {
     var params = msg.split(" "),
@@ -26,6 +18,32 @@ function parseCommand(msg) {
   }
 }
 
+function getChannels(relay) {
+  var channels = [];
+  for (var k in relay.chans) {
+    channels.push(k);
+  }
+  return channels;
+}
+
+config.relayServers.forEach(function(relayServer, i) {
+  relays[i+1] = new irc.Client(relayServer, config.relayNick, config.relayConnection);
+  relays[i+1].relayServer = relayServer;
+  relays[i+1].echoState = 1; // thx b4x
+  relays[i+1].addListener('error', function(m) {
+    console.error('Relay %d error: %s: %s', i+1, m.command, m.args.join(' '));  
+  });
+  relays[i+1].addListener('message', function(f, t, m) {
+    if (relays[i+1].echoState == 1) {
+      if (m.indexOf(config.relayNick) !== -1) {
+        config.baseConnection.channels.forEach(function(baseChan) {
+          baseClient.say(baseChan, '1,9'+relays[i+1].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
+        });
+      }
+    }
+  });
+});
+
 baseClient.addListener('error', function(err) {
   console.log('Error: %s: %s', err.command, err.args.join(' '));
 });
@@ -35,50 +53,153 @@ baseClient.addListener('message', function(f, t, m) {
   
   if (com) {
     
-    var relayClient;
+    var relaySelect, relayClient, 
+        channel, channels;
     
     if (com.command == 'relay') {
-      var relaySelect = com.params[0],
-          msg = '';
+      var msg = '';
       
+      relaySelect = com.params[0];
       com.params.shift();
       msg = com.params.join(' ');
       
-      if (relaySelect === '*') {
-        // to all
-        for (var k in relays) {
-          relayClient = relays[k];
-          if (msg !== '') {
-            config.relayConnection.channels.forEach(function(chan) {
+      if (msg !== '') {
+        if (relaySelect === '*') {
+          // to all
+          for (var k in relays) {
+            relayClient = relays[k];
+            channels = getChannels(relayClient);
+            channels.forEach(function(chan) {
               relayClient.say(chan, msg);
-              baseClient.say(t, 'Relay: '+relayClient.relayServer+":"+chan+" -> "+com.params.join(' '));
+              baseClient.say(t, '9,1<<Relay>> 1,9'+relayClient.relayServer+" "+chan+" ->2,9 "+com.params.join(' '));
+            });
+          }
+        }
+        else {
+          relayClient = relays[Number(relaySelect)];
+          if (relayClient) {
+            channels = getChannels(relayClient);
+            channels.forEach(function(chan) {
+              relayClient.say(chan, msg);
+              baseClient.say(t, '9,1<<Relay>> 1,9'+relayClient.relayServer+" "+chan+" ->2,9 "+com.params.join(' '));
             });
           }
           else {
-            baseClient.say(t, 'Usage: !relay * message goes here');
+            baseClient.say(t, 'Usage: !relay serverID message goes here');
           }
         }
       }
       else {
-        relayClient = relays[Number(relaySelect)];
-        if (relayClient && msg !== '') {
-          config.relayConnection.channels.forEach(function(chan) {
-            relayClient.say(chan, msg);
-            baseClient.say(t, 'Relay: '+relayClient.relayServer+":"+chan+" -> "+com.params.join(' '));
-          });
-        }
-        else {
-          baseClient.say(t, 'Usage: !relay serverID message goes here');
-        }
+        baseClient.say(t, 'Usage: !relay serverID message goes here');
       }
-      
-      
     }
     
     if (com.command == 'list') {
       for (var k in relays) {
-        baseClient.say(t, k+': '+relays[k].relayServer);
+        channels = getChannels(relays[k]);
+        baseClient.say(t, k+': '+relays[k].relayServer+' ['+channels.join(', ')+'] Echo: '+relays[k].echoState);
       }
     }
+    
+    if (com.command == 'join') {
+      channel = com.params[1];
+      
+      relaySelect = com.params[0];
+      
+      if (channel && channel.match(/^#/) && relaySelect) {
+        if (relaySelect === '*') {
+          // join the channel on all servers
+          for (var k in relays) {
+            relayClient = relays[k];
+            relayClient.join(channel);
+            baseClient.say(t, 'Joined '+relayClient.relayServer+':'+channel);
+          }
+        }
+        else {
+          // just join on one server
+          relayClient = relays[Number(relaySelect)];
+          if (relayClient) {
+            relayClient.join(channel);
+            baseClient.say(t, 'Joined '+relayClient.relayServer+':'+channel);
+          }
+          else {
+            baseClient.say(t, 'Usage: !join serverID #channel');
+          }
+        }
+      }
+      else {
+        baseClient.say(t, 'Usage: !join serverID #channel');
+      }
+    }
+    
+    if (com.command == 'part') {
+      channel = com.params[1];
+      
+      relaySelect = com.params[0];
+      
+      if (channel && relaySelect) {
+        if (relaySelect === '*') {
+          // part the channel on all servers
+          for (var k in relays) {
+            relayClient = relays[k];
+            channels = getChannels(relayClient);
+            if (channels.indexOf(channel) !== -1) {
+              relayClient.part(channel);
+              baseClient.say(t, 'Parted '+relayClient.relayServer+':'+channel);
+            }
+          }
+        }
+        else {
+          // part the channel on one server
+          relayClient = relays[Number(relaySelect)];
+          channels = getChannels(relayClient);
+          if (relayClient) {
+            if (channels.indexOf(channel) !== -1) {
+              relayClient.part(channel);
+              baseClient.say(t, 'Parted '+relayClient.relayServer+':'+channel);
+            }
+          }
+          else {
+            baseClient.say(t, 'Usage: !part serverID #channel');
+          }
+        }
+      }
+      else {
+        baseClient.say(t, 'Usage: !part serverID #channel');
+      }
+    }
+    
+    if (com.command == 'echo') {
+      var state = com.params[1];
+      
+      relaySelect = com.params[0];
+      
+      if (relaySelect && (state == '1' || state == '0')) {
+        if (relaySelect === '*') {
+          // set the echoState for all servers
+          for (var k in relays) {
+            relayClient = relays[k];
+            relayClient.echoState = Number(state);
+            baseClient.say(t, relayClient.relayServer+' echo: '+state);
+          }
+        }
+        else {
+          // set the echoState for one server
+          relayClient = relays[Number(relaySelect)];
+          if (relayClient) {
+            relayClient.echoState = Number(state);
+            baseClient.say(t, relayClient.relayServer+' echo: '+state);
+          }
+          else {
+            baseClient.say(t, 'Usage: !echo serverID 1|0');  
+          }
+        }
+      }
+      else {
+        baseClient.say(t, 'Usage: !echo serverID 1|0');
+      }
+      
+    }
+    
   }
 });
