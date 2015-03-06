@@ -2,7 +2,7 @@ var config = require('./config'),
     irc = require('irc');
 
 var baseClient = new irc.Client(config.baseServer, config.baseNick, config.baseConnection),
-    relays = {};
+    relays = {}, lastRelay;
 
 function parseCommand(msg) {
   if (msg[0] === config.commandIdentifer) {
@@ -35,13 +35,14 @@ config.relayServers.forEach(function(relayServer, i) {
   });
   relays[i+1].addListener('message', function(f, t, m) {
     if (relays[i+1].echoState == 1) {
-      if (m.indexOf(config.relayNick) !== -1) {
+      if (m.indexOf(relays[i+1].nick) !== -1) {
         config.baseConnection.channels.forEach(function(baseChan) {
           baseClient.say(baseChan, '1,9'+relays[i+1].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
         });
       }
     }
   });
+  lastRelay = i+1;
 });
 
 baseClient.addListener('error', function(err) {
@@ -54,11 +55,10 @@ baseClient.addListener('message', function(f, t, m) {
   if (com) {
     
     var relaySelect, relayClient, 
-        channel, channels;
+        channel, channels, msg, nick;
     
     if (com.command == 'relay') {
-      var msg = '';
-      
+      msg = '';
       relaySelect = com.params[0];
       com.params.shift();
       msg = com.params.join(' ');
@@ -111,16 +111,18 @@ baseClient.addListener('message', function(f, t, m) {
           // join the channel on all servers
           for (var k in relays) {
             relayClient = relays[k];
-            relayClient.join(channel);
-            baseClient.say(t, 'Joined '+relayClient.relayServer+':'+channel);
+            relayClient.join(channel, function() {
+              baseClient.say(t, 'Joined '+relayClient.relayServer+':'+channel);  
+            });
           }
         }
         else {
           // just join on one server
           relayClient = relays[Number(relaySelect)];
           if (relayClient) {
-            relayClient.join(channel);
-            baseClient.say(t, 'Joined '+relayClient.relayServer+':'+channel);
+            relayClient.join(channel, function() {
+              baseClient.say(t, 'Joined '+relayClient.relayServer+':'+channel);
+            });
           }
           else {
             baseClient.say(t, 'Usage: !join serverID #channel');
@@ -199,6 +201,101 @@ baseClient.addListener('message', function(f, t, m) {
         baseClient.say(t, 'Usage: !echo serverID 1|0');
       }
       
+    }
+    
+    if (com.command == 'nick') {
+      nick = com.params[1];
+      
+      relaySelect = com.params[0];
+      
+      if (relaySelect && nick) {
+        if (relaySelect === '*') {
+          // change nick for all channels
+          for (var k in relays) {
+            relayClient = relays[k];
+            relayClient.send('NICK', nick);
+            baseClient.say(t, 'Nick '+relayClient.relayServer+': '+nick);
+          }
+        }
+        else {
+          // change nick for 1 channel
+          relayClient = relays[Number(relaySelect)];
+          if (relayClient) {
+            relayClient.send('NICK', nick);
+            baseClient.say(t, 'Nick '+relayClient.relayServer+': '+nick);
+          }
+          else {
+            baseClient.say(t, 'Usage: !nick serverID nick');  
+          }
+        }
+      }
+      else {
+        baseClient.say(t, 'Usage: !nick serverID nick');
+      }
+    }
+    
+    if (com.command == 'connect') {
+      var server = com.params[0];
+          
+      nick = com.params[1];
+      
+      if (!nick) {
+        nick = config.relayNick;
+      }
+      
+      if (server) {
+        var thisRelay = lastRelay + 1;
+        relays[thisRelay] = new irc.Client(server, nick, config.relayConnection);
+        relays[thisRelay].relayServer = server;
+        relays[thisRelay].echoState = 1;
+        relays[thisRelay].addListener('error', function(m) {
+          console.error('Relay %d error: %s: %s', thisRelay, m.command, m.args.join(' '));
+        });
+        relays[thisRelay].addListener('registered', function(m) {
+          baseClient.say(t, 'Connected to '+server);
+          lastRelay += 1;
+        });
+        relays[thisRelay].addListener('message', function(f, t, m) {
+          if (relays[thisRelay].echoState == 1) {
+            if (m.indexOf(relays[thisRelay].nick) !== -1) {
+              config.baseConnection.channels.forEach(function(baseChan) {
+                baseClient.say(baseChan, '1,9'+relays[thisRelay].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
+              });
+            }
+          }
+        });
+        relays[thisRelay].addListener('netError', function(e) {
+          baseClient.say(t, 'Network '+e);
+        });
+        relays[thisRelay].addListener('abort', function(c) {
+          delete(relays[thisRelay]);
+        });
+      }
+      else {
+        baseClient.say(t, 'Usage: !connect server');
+      }
+    }
+    
+    if (com.command == 'disconnect') {
+      relaySelect = com.params[0];
+      com.params.shift();
+      msg = com.params.join(' ');
+      
+      if (relaySelect) {
+        relayClient = relays[Number(relaySelect)];
+        if (relayClient) {
+          relayClient.disconnect(msg, function() {
+            baseClient.say(t, 'Disconnected from '+relayClient.relayServer);
+          });
+          delete(relays[Number(relaySelect)]);
+        }
+        else {
+          baseClient.say(t, 'Usage: !disconnect serverID [message]');
+        }
+      }
+      else {
+        baseClient.say(t, 'Usage: !disconnect serverID [message]');
+      }
     }
     
   }
