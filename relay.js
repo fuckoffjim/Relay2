@@ -58,39 +58,59 @@ baseClient.addListener('message', function(f, t, m) {
         channel, channels, msg, nick;
     
     if (com.command == 'relay') {
-      msg = '';
+      var channelSelect = com.params[1];
       relaySelect = com.params[0];
+      msg = '';
+      com.params.shift();
       com.params.shift();
       msg = com.params.join(' ');
       
-      if (msg !== '') {
+      if (msg !== '' && channelSelect !== '') {
         if (relaySelect === '*') {
           // to all
           for (var k in relays) {
             relayClient = relays[k];
             channels = getChannels(relayClient);
-            channels.forEach(function(chan) {
-              relayClient.say(chan, msg);
-              baseClient.say(t, '9,1<<Relay>> 1,9'+relayClient.relayServer+" "+chan+" ->2,9 "+com.params.join(' '));
-            });
+            if (channelSelect === '*') {
+              channels.forEach(function(chan) {
+                relayClient.say(chan, msg);
+                baseClient.say(t, '9,1<<Relay>> 1,9'+relayClient.relayServer+" "+chan+" ->2,9 "+com.params.join(' '));
+              });
+            }
+            else {
+              if (channels.indexOf(channelSelect) !== -1) {
+                relayClient.say(channelSelect, msg);
+                baseClient.say(t, '9,1<<Relay>> 1,9'+relayClient.relayServer+" "+channelSelect+" ->2,9 "+com.params.join(' '));
+              }
+            }
           }
         }
         else {
           relayClient = relays[Number(relaySelect)];
           if (relayClient) {
             channels = getChannels(relayClient);
-            channels.forEach(function(chan) {
-              relayClient.say(chan, msg);
-              baseClient.say(t, '9,1<<Relay>> 1,9'+relayClient.relayServer+" "+chan+" ->2,9 "+com.params.join(' '));
-            });
+            
+            if (channelSelect === '*') {
+              channels.forEach(function(chan) {
+                relayClient.say(chan, msg);
+                baseClient.say(t, '9,1<<Relay>> 1,9'+relayClient.relayServer+" "+chan+" ->2,9 "+com.params.join(' '));
+              });
+            }
+            else {
+              if (channels.indexOf(channelSelect) !== -1) {
+                relayClient.say(channelSelect, msg);
+                baseClient.say(t, '9,1<<Relay>> 1,9'+relayClient.relayServer+" "+channelSelect+" ->2,9 "+com.params.join(' '));
+              }
+            }
+            
           }
           else {
-            baseClient.say(t, 'Usage: !relay serverID message goes here');
+            baseClient.say(t, 'Usage: !relay serverID|* channel|* message goes here');
           }
         }
       }
       else {
-        baseClient.say(t, 'Usage: !relay serverID message goes here');
+        baseClient.say(t, 'Usage: !relay serverID|* channel|* message goes here');
       }
     }
     
