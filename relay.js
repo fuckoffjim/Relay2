@@ -54,7 +54,7 @@ baseClient.addListener('message', function(f, t, m) {
   
   if (com) {
     
-    var relaySelect, relayClient, 
+    var relaySelect, relayClient, cmd,
         channel, channels, msg, nick;
     
     if (com.command == 'relay') {
@@ -301,6 +301,8 @@ baseClient.addListener('message', function(f, t, m) {
       com.params.shift();
       msg = com.params.join(' ');
       
+      if (msg == '') { msg = 'bye'; }
+      
       if (relaySelect) {
         relayClient = relays[Number(relaySelect)];
         if (relayClient) {
@@ -315,6 +317,22 @@ baseClient.addListener('message', function(f, t, m) {
       }
       else {
         baseClient.say(t, 'Usage: !disconnect serverID [message]');
+      }
+    }
+    
+    if (com.command == 'pm') {
+      var to = com.params[1];
+      relaySelect = com.params[0];
+      com.params.shift();
+      com.params.shift();
+      msg = com.params.join(' ');
+      
+      relayClient = relays[Number(relaySelect)];
+      if (relayClient && to && msg) {
+        relayClient.say(to, msg);
+      }
+      else {
+        baseClient.say(t, 'Usage: !pm serverID to message goes here');
       }
     }
     
