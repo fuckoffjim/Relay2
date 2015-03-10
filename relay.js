@@ -31,7 +31,10 @@ config.relayServers.forEach(function(relayServer, i) {
   relays[i+1].relayServer = relayServer;
   relays[i+1].echoState = 1; // thx b4x
   relays[i+1].addListener('error', function(m) {
-    console.error('Relay %d error: %s: %s', i+1, m.command, m.args.join(' '));  
+    console.error('Relay %d error: %s: %s', i+1, m.command, m.args.join(' '));
+    config.baseConnection.channels.forEach(function(baseChan) {
+      baseClient.say(baseChan, 'Relay %d error: %s: %s', i+1, m.command, m.args.join(' '));
+    });
   });
   relays[i+1].addListener('message', function(f, t, m) {
     if (relays[i+1].echoState == 1) {
@@ -126,7 +129,7 @@ baseClient.addListener('message', function(f, t, m) {
       
       relaySelect = com.params[0];
       
-      if (channel && channel.match(/^#/) && relaySelect) {
+      if (channel && channel.match(/^[#&+]/) && relaySelect) {
         if (relaySelect === '*') {
           // join the channel on all servers
           for (var k in relays) {
@@ -270,6 +273,9 @@ baseClient.addListener('message', function(f, t, m) {
         relays[thisRelay].echoState = 1;
         relays[thisRelay].addListener('error', function(m) {
           console.error('Relay %d error: %s: %s', thisRelay, m.command, m.args.join(' '));
+          config.baseConnection.channels.forEach(function(baseChan) {
+            baseClient.say(baseChan, 'Relay %d error: %s: %s', thisRelay, m.command, m.args.join(' '));
+          });
         });
         relays[thisRelay].addListener('registered', function(m) {
           baseClient.say(t, 'Connected to '+server);
@@ -292,7 +298,7 @@ baseClient.addListener('message', function(f, t, m) {
         });
       }
       else {
-        baseClient.say(t, 'Usage: !connect server');
+        baseClient.say(t, 'Usage: !connect server [nick]');
       }
     }
     
