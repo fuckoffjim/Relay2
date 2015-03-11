@@ -1,4 +1,5 @@
 module.exports = {
+  admin: 'lolpancakes',
   masters: ['YoSamaBeenLadin'],
   baseServer: '',
   relayServers: [''],
@@ -33,7 +34,8 @@ module.exports = {
     secure: false,
     selfSigned: true,
     certExpired: true,
-    floodProtection: true,
+    retryCount: 0,
+    floodProtection: false,
     floodProtectionDelay: 1000,
   }
 };
