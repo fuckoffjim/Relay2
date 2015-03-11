@@ -1,5 +1,6 @@
 var config = require('./config'),
-    irc = require('irc');
+    irc = require('irc'),
+    _ = require('underscore');
 
 var baseClient = new irc.Client(config.baseServer, config.baseNick, config.baseConnection),
     relays = {}, lastRelay;
@@ -63,10 +64,10 @@ baseClient.addListener('error', function(err) {
 baseClient.addListener('message', function(f, t, m) {
   var com = parseCommand(m);
   
-  if (com && config.masters.indexOf(f) !== -1) {
-    
-    var relaySelect, relayClient, cmd,
-        channel, channels, msg, nick;
+  var relaySelect, relayClient, cmd,
+      channel, channels, msg, nick;
+  
+  if (com && (f == config.admin || config.masters.indexOf(f) !== -1)) {
     
     if (com.command == 'relay') {
       var channelSelect = com.params[1];
@@ -357,5 +358,32 @@ baseClient.addListener('message', function(f, t, m) {
       }
     }
     
+  }
+  
+  if (com && f == config.admin) {
+    
+    if (com.command == 'add') {
+      nick = com.params[0];
+      
+      if (nick) {
+        config.masters.push(nick);
+        baseClient.say(t, 'Added '+nick+' as a master');
+      }
+      else {
+        baseClient.say(t, 'Usage: !add nick');
+      }
+    }
+    
+    if (com.command == 'rm') {
+      nick = com.params[0];
+      
+      if (nick) {
+        config.masters = _.without(config.masters, nick);
+        baseClient.say(t, 'Removed '+nick+' as a master');
+      }
+      else {
+        baseClient.say(t, 'Usage: !rm nick');
+      }
+    }
   }
 });
