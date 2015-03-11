@@ -33,12 +33,20 @@ config.relayServers.forEach(function(relayServer, i) {
   relays[i+1].addListener('error', function(m) {
     console.error('Relay %d error: %s: %s', i+1, m.command, m.args.join(' '));
     config.baseConnection.channels.forEach(function(baseChan) {
-      baseClient.say(baseChan, 'Relay %d error: %s: %s', i+1, m.command, m.args.join(' '));
+      baseClient.say(baseChan, 'Relay '+(i+1)+' error: '+m.command+' '+m.args.join(' '));
     });
   });
   relays[i+1].addListener('message', function(f, t, m) {
-    if (relays[i+1].echoState == 1) {
-      if (m.indexOf(relays[i+1].nick) !== -1) {
+    if (relays[i+1].echoState > 0) {
+      if (relays[i+1].echoState == 1) {
+        if (m.indexOf(relays[i+1].nick) !== -1) {
+          config.baseConnection.channels.forEach(function(baseChan) {
+            baseClient.say(baseChan, '1,9'+relays[i+1].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
+          });
+        }
+      }
+      if (relays[i+1].echoState == 2) {
+        // log all
         config.baseConnection.channels.forEach(function(baseChan) {
           baseClient.say(baseChan, '1,9'+relays[i+1].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
         });
@@ -55,7 +63,7 @@ baseClient.addListener('error', function(err) {
 baseClient.addListener('message', function(f, t, m) {
   var com = parseCommand(m);
   
-  if (com) {
+  if (com && config.masters.indexOf(f) !== -1) {
     
     var relaySelect, relayClient, cmd,
         channel, channels, msg, nick;
@@ -199,7 +207,7 @@ baseClient.addListener('message', function(f, t, m) {
       
       relaySelect = com.params[0];
       
-      if (relaySelect && (state == '1' || state == '0')) {
+      if (relaySelect && (state == '2' || state == '1' || state == '0')) {
         if (relaySelect === '*') {
           // set the echoState for all servers
           for (var k in relays) {
@@ -216,12 +224,12 @@ baseClient.addListener('message', function(f, t, m) {
             baseClient.say(t, relayClient.relayServer+' echo: '+state);
           }
           else {
-            baseClient.say(t, 'Usage: !echo serverID 1|0');  
+            baseClient.say(t, 'Usage: !echo serverID 0|1|2');  
           }
         }
       }
       else {
-        baseClient.say(t, 'Usage: !echo serverID 1|0');
+        baseClient.say(t, 'Usage: !echo serverID 0|1|2');
       }
       
     }
@@ -274,7 +282,7 @@ baseClient.addListener('message', function(f, t, m) {
         relays[thisRelay].addListener('error', function(m) {
           console.error('Relay %d error: %s: %s', thisRelay, m.command, m.args.join(' '));
           config.baseConnection.channels.forEach(function(baseChan) {
-            baseClient.say(baseChan, 'Relay %d error: %s: %s', thisRelay, m.command, m.args.join(' '));
+            baseClient.say(baseChan, 'Relay '+thisRelay+' error: '+m.command+' '+m.args.join(' '));
           });
         });
         relays[thisRelay].addListener('registered', function(m) {
@@ -282,8 +290,15 @@ baseClient.addListener('message', function(f, t, m) {
           lastRelay += 1;
         });
         relays[thisRelay].addListener('message', function(f, t, m) {
-          if (relays[thisRelay].echoState == 1) {
-            if (m.indexOf(relays[thisRelay].nick) !== -1) {
+          if (relays[thisRelay].echoState > 0) {
+            if (relays[thisRelay].echoState == 1) {
+              if (m.indexOf(relays[thisRelay].nick) !== -1) {
+                config.baseConnection.channels.forEach(function(baseChan) {
+                  baseClient.say(baseChan, '1,9'+relays[thisRelay].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
+                });
+              }
+            }
+            if (relays[thisRelay].echoState == 2) {
               config.baseConnection.channels.forEach(function(baseChan) {
                 baseClient.say(baseChan, '1,9'+relays[thisRelay].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
               });
