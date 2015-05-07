@@ -54,7 +54,7 @@ config.relayServers.forEach(function(relayServer, i) {
       }
     }
   });
-  relays[i+1].addListener('join'+config.relayConnection.channels[0], function(c, n, m) {
+  relays[i+1].addListener('join'+config.relayConnection.channels[0], function(n) {
     if (n == config.relayNick) {
       relays[i+1].addListener('notice', function(n, to, txt, m) {
         config.baseConnection.channels.forEach(function(baseChan) {
