@@ -42,17 +42,25 @@ config.relayServers.forEach(function(relayServer, i) {
       if (relays[i+1].echoState == 1) {
         if (m.indexOf(relays[i+1].nick) !== -1) {
           config.baseConnection.channels.forEach(function(baseChan) {
-            baseClient.say(baseChan, '1,9'+relays[i+1].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
+            baseClient.say(baseChan, '1,9 '+relays[i+1].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
           });
         }
       }
       if (relays[i+1].echoState == 2) {
         // log all
         config.baseConnection.channels.forEach(function(baseChan) {
-          baseClient.say(baseChan, '1,9'+relays[i+1].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
+          baseClient.say(baseChan, '1,9 '+relays[i+1].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
         });
       }
     }
+  });
+  relays[i+1].addListener('join'+config.relayConnection.channels[0], function() {
+    console.log('joined');
+    relays[i+1].addListener('notice', function(n, to, txt, m) {
+      config.baseConnection.channels.forEach(function(baseChan) {
+        baseClient.say(baseChan, '9,1<<Relay>> 1,9 NOTICE: '+n+' ->2,9 '+txt);
+      });
+    });
   });
   lastRelay = i+1;
 });
@@ -86,13 +94,13 @@ baseClient.addListener('message', function(f, t, m) {
             if (channelSelect === '*') {
               channels.forEach(function(chan) {
                 relayClient.say(chan, msg);
-                baseClient.say(t, '9,1<<Relay>> 1,9'+relayClient.relayServer+" "+chan+" ->2,9 "+com.params.join(' '));
+                baseClient.say(t, '9,1<<Relay>> 1,9 '+relayClient.relayServer+" "+chan+" ->2,9 "+com.params.join(' '));
               });
             }
             else {
               if (channels.indexOf(channelSelect) !== -1) {
                 relayClient.say(channelSelect, msg);
-                baseClient.say(t, '9,1<<Relay>> 1,9'+relayClient.relayServer+" "+channelSelect+" ->2,9 "+com.params.join(' '));
+                baseClient.say(t, '9,1<<Relay>> 1,9 '+relayClient.relayServer+" "+channelSelect+" ->2,9 "+com.params.join(' '));
               }
             }
           }
@@ -105,13 +113,13 @@ baseClient.addListener('message', function(f, t, m) {
             if (channelSelect === '*') {
               channels.forEach(function(chan) {
                 relayClient.say(chan, msg);
-                baseClient.say(t, '9,1<<Relay>> 1,9'+relayClient.relayServer+" "+chan+" ->2,9 "+com.params.join(' '));
+                baseClient.say(t, '9,1<<Relay>> 1,9 '+relayClient.relayServer+" "+chan+" ->2,9 "+com.params.join(' '));
               });
             }
             else {
               if (channels.indexOf(channelSelect) !== -1) {
                 relayClient.say(channelSelect, msg);
-                baseClient.say(t, '9,1<<Relay>> 1,9'+relayClient.relayServer+" "+channelSelect+" ->2,9 "+com.params.join(' '));
+                baseClient.say(t, '9,1<<Relay>> 1,9 '+relayClient.relayServer+" "+channelSelect+" ->2,9 "+com.params.join(' '));
               }
             }
             
@@ -295,13 +303,13 @@ baseClient.addListener('message', function(f, t, m) {
             if (relays[thisRelay].echoState == 1) {
               if (m.indexOf(relays[thisRelay].nick) !== -1) {
                 config.baseConnection.channels.forEach(function(baseChan) {
-                  baseClient.say(baseChan, '1,9'+relays[thisRelay].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
+                  baseClient.say(baseChan, '1,9 '+relays[thisRelay].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
                 });
               }
             }
             if (relays[thisRelay].echoState == 2) {
               config.baseConnection.channels.forEach(function(baseChan) {
-                baseClient.say(baseChan, '1,9'+relays[thisRelay].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
+                baseClient.say(baseChan, '1,9 '+relays[thisRelay].relayServer+' '+t+'4,9 '+f+' 1,9-> 2,9 '+m);
               });
             }
           }
