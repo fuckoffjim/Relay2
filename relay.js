@@ -54,13 +54,14 @@ config.relayServers.forEach(function(relayServer, i) {
       }
     }
   });
-  relays[i+1].addListener('join'+config.relayConnection.channels[0], function() {
-    console.log('joined');
-    relays[i+1].addListener('notice', function(n, to, txt, m) {
-      config.baseConnection.channels.forEach(function(baseChan) {
-        baseClient.say(baseChan, '9,1<<Relay>> 1,9 NOTICE: '+n+' ->2,9 '+txt);
+  relays[i+1].addListener('join'+config.relayConnection.channels[0], function(c, n, m) {
+    if (n == config.relayNick) {
+      relays[i+1].addListener('notice', function(n, to, txt, m) {
+        config.baseConnection.channels.forEach(function(baseChan) {
+          baseClient.say(baseChan, '9,1<<Relay>> 1,9 NOTICE: '+n+' ->2,9 '+txt);
+        });
       });
-    });
+    }
   });
   lastRelay = i+1;
 });
